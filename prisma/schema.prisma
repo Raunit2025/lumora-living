@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/prisma-client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id          String      @id @default(uuid())
+  name        String
+  description String
+  price       Float
+  stock       Int
+  imageUrl    String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  
+  // This line tells Prisma that a Product can belong to many past orders
+  orderItems  OrderItem[] 
+  cartItems     CartItem[]
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  customerEmail   String      @default("guest@lunoraliving.com")
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id])
+  
+  totalAmount     Float
+  status          String      @default("PENDING")
+  paymentMethod   String      @default("RAZORPAY") // <-- NEW ("RAZORPAY" or "COD")
+  shippingAddress String?     // <-- NEW (Saves the exact address used for this specific order)
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  items           OrderItem[] 
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Float   // The locked-in price at checkout
+  
+  // These lines physically build the relational bridges in PostgreSQL
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  phone         String?     // <-- NEW
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  orders        Order[]
+  cartItems     CartItem[]
+  addresses     Address[]   // <-- NEW
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // This ensures a user only has one row per product in their cart (we just update the quantity)
+  @@unique([userId, productId])
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  street    String
+  city      String
+  state     String
+  zipCode   String
+  isDefault Boolean  @default(false)
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
