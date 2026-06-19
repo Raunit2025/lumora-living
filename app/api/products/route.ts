@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/db";
-import { writeFile } from 'fs/promises';
-import path from 'path';
+import { put } from "@vercel/blob";
 
 // The POST function handles incoming Form Data (Text + Files)
 export async function POST(request: Request) {
@@ -18,21 +17,19 @@ export async function POST(request: Request) {
     const file: File | null = data.get('image') as unknown as File;
     let imageUrl = null;
 
-    // 3. If an image was uploaded, save it to the public/uploads folder
+    // 3. If an image was uploaded, save it to Vercel Blob storage
     if (file && file.name) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-
       // Clean the filename so there are no spaces or weird characters
       const cleanFileName = file.name.replaceAll(' ', '_');
       const filename = `${Date.now()}-${cleanFileName}`;
       
-      // Tell Next.js exactly where to save it
-      const filepath = path.join(process.cwd(), 'public/uploads', filename);
-      await writeFile(filepath, buffer);
+      // Upload directly to Vercel Blob
+      const blob = await put(`uploads/${filename}`, file, {
+        access: 'public', // Makes the image publicly readable on the storefront
+      });
       
-      // This is the link we save to the database!
-      imageUrl = `/uploads/${filename}`;
+      // This is the secure cloud link we save to the database!
+      imageUrl = blob.url;
     }
 
     // 4. Save everything to PostgreSQL
