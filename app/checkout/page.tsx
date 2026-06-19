@@ -466,7 +466,7 @@ export default function CheckoutPage() {
             <div className="space-y-4 mb-8">
               <div className="flex justify-between text-neutral-600 text-sm">
                 <span>Subtotal ({cart.reduce((sum, item) => sum + item.cartQuantity, 0)} items)</span>
-                <span className="font-mono text-neutral-900 font-medium">${cartTotalAmount.toFixed(2)}</span>
+                <span className="font-mono text-neutral-900 font-medium">₹{cartTotalAmount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-neutral-600 text-sm">
                 <span>Shipping</span>
@@ -481,7 +481,7 @@ export default function CheckoutPage() {
             <div className="border-t border-neutral-100 pt-6 mb-8 flex justify-between items-baseline">
               <span className="font-bold text-neutral-900 text-lg">Total</span>
               <span className="font-mono font-bold text-2xl text-neutral-900">
-                ${cartTotalAmount.toFixed(2)}
+                ₹{cartTotalAmount.toFixed(2)}
               </span>
             </div>
 

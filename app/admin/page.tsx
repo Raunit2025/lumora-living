@@ -339,7 +339,7 @@ export default function AdminPortal() {
               Gross Revenue
             </h3>
             <p className="text-4xl font-mono font-bold text-neutral-900">
-              ${totalRevenue.toFixed(2)}
+              ₹{totalRevenue.toFixed(2)}
             </p>
           </div>
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-neutral-100 flex flex-col justify-between">
@@ -394,7 +394,7 @@ export default function AdminPortal() {
                           {product.name}
                         </p>
                         <p className="text-xs text-neutral-500 font-mono mt-0.5">
-                          ${product.price.toFixed(2)}
+                          ₹{product.price.toFixed(2)}
                         </p>
                       </div>
                       <div className="text-right flex flex-col items-end gap-2">
@@ -466,7 +466,7 @@ export default function AdminPortal() {
 
                       <div className="flex sm:flex-col items-center sm:items-end justify-between shrink-0 gap-2">
                         <p className="font-mono font-bold text-neutral-900 text-sm">
-                          ${order.totalAmount.toFixed(2)}
+                          ₹{order.totalAmount.toFixed(2)}
                         </p>
                         <select
                           value={order.status}
@@ -560,7 +560,7 @@ export default function AdminPortal() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-neutral-500 uppercase tracking-widest">
-                    Unit Price ($)
+                    Unit Price (₹)
                   </label>
                   <input
                     required

@@ -189,11 +189,11 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
                         {item.product.name}
                       </h3>
                     </Link>
-                    <p className="text-neutral-500 text-xs sm:text-sm mt-1 font-light">Price: ${(item.price).toFixed(2)}</p>
+                    <p className="text-neutral-500 text-xs sm:text-sm mt-1 font-light">Price: ₹{(item.price).toFixed(2)}</p>
                     <p className="text-neutral-500 text-xs sm:text-sm font-light">Qty: {item.quantity}</p>
                   </div>
                   <div className="font-mono font-bold text-neutral-900 text-base sm:text-lg">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ₹{(item.price * item.quantity).toFixed(2)}
                   </div>
                 </div>
               ))}
@@ -230,7 +230,7 @@ export default function OrderDetailsPage({ params }: { params: Promise<{ id: str
             </div>
             <div className="border-t border-neutral-100 pt-4 flex justify-between items-baseline">
               <span className="font-bold text-neutral-900">Total</span>
-              <span className="font-mono font-bold text-xl text-neutral-900">${order.totalAmount.toFixed(2)}</span>
+              <span className="font-mono font-bold text-xl text-neutral-900">₹{order.totalAmount.toFixed(2)}</span>
             </div>
           </div>
 

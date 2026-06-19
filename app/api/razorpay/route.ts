@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     const options = {
       amount: amountInSmallestUnit,
-      currency: "USD", // Change to "INR" if you are using Rupees
+      currency: "INR", // Change to "INR" if you are using Rupees
       receipt: `rcpt_${Date.now()}`,
     };
 

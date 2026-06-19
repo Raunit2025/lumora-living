@@ -193,7 +193,7 @@ export default function ProductDetailPage() {
             </h1>
             
             <p className="text-2xl font-mono font-bold text-neutral-800 mb-8 pb-8 border-b border-neutral-100">
-              ${product.price.toFixed(2)}
+              ₹{product.price.toFixed(2)}
             </p>
             
             <p className="text-base text-neutral-500 mb-10 leading-relaxed font-light">

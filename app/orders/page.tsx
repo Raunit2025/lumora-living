@@ -99,7 +99,7 @@ export default function MyOrdersPage() {
                     </div>
                     <div>
                       <p className="text-[10px] text-neutral-400 uppercase font-bold tracking-widest mb-1.5">Total Amount</p>
-                      <p className="font-mono font-bold text-neutral-900 text-sm">${order.totalAmount.toFixed(2)}</p>
+                      <p className="font-mono font-bold text-neutral-900 text-sm">₹{order.totalAmount.toFixed(2)}</p>
                     </div>
                   </div>
 

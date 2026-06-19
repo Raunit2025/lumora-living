@@ -293,7 +293,7 @@ export default function Storefront() {
                   </h3>
                 </Link>
                 <p className="font-mono text-xs sm:text-base font-semibold text-neutral-800 mt-1">
-                  ${product.price.toFixed(2)}
+                  ₹{product.price.toFixed(2)}
                 </p>
               </div>
 
@@ -521,7 +521,7 @@ export default function Storefront() {
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-start gap-2">
                         <h3 className="font-medium text-sm text-neutral-900 truncate">{item.name}</h3>
-                        <p className="font-mono text-sm font-bold text-neutral-800">${(item.price * item.cartQuantity).toFixed(2)}</p>
+                        <p className="font-mono text-sm font-bold text-neutral-800">₹{(item.price * item.cartQuantity).toFixed(2)}</p>
                       </div>
                       <p className="text-xs text-neutral-400 mt-0.5 font-mono">Quantity: {item.cartQuantity}</p>
                       
@@ -541,7 +541,7 @@ export default function Storefront() {
               <div className="p-5 border-t border-neutral-100 bg-neutral-50/80 backdrop-blur-md">
                 <div className="flex justify-between text-base items-baseline mb-4">
                   <span className="text-neutral-500 font-light">Subtotal</span>
-                  <span className="font-mono text-lg font-bold text-neutral-950">${cartTotalAmount.toFixed(2)}</span>
+                  <span className="font-mono text-lg font-bold text-neutral-950">₹{cartTotalAmount.toFixed(2)}</span>
                 </div>
                 <Link
                   href="/checkout"
