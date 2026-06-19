@@ -20,6 +20,7 @@ model Product {
   // This line tells Prisma that a Product can belong to many past orders
   orderItems  OrderItem[] 
   cartItems     CartItem[]
+  reviews       Review[]
 }
 
 model Order {
@@ -30,8 +31,9 @@ model Order {
   
   totalAmount     Float
   status          String      @default("PENDING")
-  paymentMethod   String      @default("RAZORPAY") // <-- NEW ("RAZORPAY" or "COD")
-  shippingAddress String?     // <-- NEW (Saves the exact address used for this specific order)
+  paymentMethod   String      @default("RAZORPAY")
+  paymentId       String?
+  shippingAddress String?
   
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -67,6 +69,7 @@ model User {
   orders        Order[]
   cartItems     CartItem[]
   addresses     Address[]   // <-- NEW
+  reviews       Review[]
 }
 
 model Account {
@@ -122,11 +125,25 @@ model CartItem {
 model Address {
   id        String   @id @default(uuid())
   userId    String
+  name      String   @default("")
   street    String
   city      String
   state     String
   zipCode   String
+  phone     String   @default("")
   isDefault Boolean  @default(false)
   
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int      // 1 to 5 stars
+  comment   String?  @db.Text
+  productId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

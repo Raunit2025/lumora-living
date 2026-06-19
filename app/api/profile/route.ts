@@ -15,8 +15,17 @@ export async function GET() {
 
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  // The underscore tells ESLint we are intentionally dropping the password for security
-  const { password: _password, ...safeUser } = user;
+  // Explicitly build the object to avoid unused variable ESLint errors
+  const safeUser = {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    image: user.image,
+    addresses: user.addresses,
+    hasPassword: !!user.password,
+  };
+  
   return NextResponse.json(safeUser, { status: 200 });
 }
 
@@ -40,7 +49,7 @@ export async function PUT(request: Request) {
   const updateData: UpdateData = {};
   if (phone !== undefined) updateData.phone = phone;
 
-  // Handle Password Change
+  // Handle Password Change safely
   if (oldPassword && newPassword) {
     if (!user.password) {
       return NextResponse.json({ error: "Google accounts cannot change passwords here." }, { status: 400 });
@@ -51,7 +60,6 @@ export async function PUT(request: Request) {
     updateData.password = await bcrypt.hash(newPassword, 10);
   }
 
-  // We await the update but don't assign it to a variable since we don't need to read it
   await prisma.user.update({
     where: { id: user.id },
     data: updateData,
@@ -65,7 +73,8 @@ export async function POST(request: Request) {
   const session = await getServerSession();
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { street, city, state, zipCode } = await request.json();
+  // NEW: Added phone to the extraction
+  const { name, street, city, state, zipCode, phone } = await request.json();
   const user = await prisma.user.findUnique({ where: { email: session.user.email } });
   
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -73,13 +82,46 @@ export async function POST(request: Request) {
   const newAddress = await prisma.address.create({
     data: {
       userId: user.id,
+      name,
       street,
       city,
       state,
       zipCode,
+      phone,
       isDefault: (await prisma.address.count({ where: { userId: user.id } })) === 0,
     },
   });
 
   return NextResponse.json(newAddress, { status: 201 });
+}
+
+// DELETE: Remove an Address
+export async function DELETE(request: Request) {
+  const session = await getServerSession();
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { addressId } = await request.json();
+  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  
+  if (user && addressId) {
+    await prisma.address.deleteMany({ where: { id: addressId, userId: user.id } });
+  }
+  return NextResponse.json({ success: true }, { status: 200 });
+}
+
+// PATCH: Set Address as Default
+export async function PATCH(request: Request) {
+  const session = await getServerSession();
+  if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { addressId } = await request.json();
+  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  
+  if (user && addressId) {
+    // 1. Make all addresses NOT default
+    await prisma.address.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
+    // 2. Make the selected address default
+    await prisma.address.update({ where: { id: addressId }, data: { isDefault: true } });
+  }
+  return NextResponse.json({ success: true }, { status: 200 });
 }

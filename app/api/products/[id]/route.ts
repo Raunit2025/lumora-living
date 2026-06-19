@@ -8,9 +8,16 @@ export async function GET(
 ) {
   try {
     const resolvedParams = await params;
-    
+
     const product = await prisma.product.findUnique({
       where: { id: resolvedParams.id },
+      // NEW: Fetch reviews and the name of the user who left them!
+      include: {
+        reviews: {
+          include: { user: { select: { name: true, email: true } } },
+          orderBy: { createdAt: "desc" },
+        }
+      }
     });
 
     if (!product) {

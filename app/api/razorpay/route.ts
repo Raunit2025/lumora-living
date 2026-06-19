@@ -2,51 +2,60 @@ import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
 import { prisma } from "../../../lib/db";
 
-// Initialize Razorpay with your secure keys
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
 
 export async function POST(request: Request) {
   try {
-    const { items } = await request.json();
+    const body = await request.json();
+    const { items } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
 
-    // 1. SECURE MATH: Recalculate the total from the database so hackers can't send a $0 price
+    // 1. Check stock gracefully BEFORE creating the Razorpay order
     let totalAmount = 0;
     for (const item of items) {
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
       });
-      
-      if (!product) throw new Error("Product not found");
-      if (product.stock < item.quantity) throw new Error(`Not enough stock for ${product.name}`);
-      
+
+      if (!product) {
+        return NextResponse.json({ error: "A product in your cart no longer exists." }, { status: 400 });
+      }
+
+      // THE FIX: Return a graceful 400 JSON instead of throwing an error
+      if (product.stock < item.quantity) {
+        return NextResponse.json(
+          { error: `Insufficient stock for ${product.name}. Only ${product.stock} left in stock!` },
+          { status: 400 }
+        );
+      }
+
       totalAmount += product.price * item.quantity;
     }
 
-    // 2. Razorpay expects the amount in the SMALLEST currency unit (cents or paise)
-    // $16.99 becomes 1699
+    // Razorpay expects amount in the smallest currency unit (e.g., paise for INR, cents for USD)
+    // If your prices are in dollars, multiply by 100 to get cents.
     const amountInSmallestUnit = Math.round(totalAmount * 100);
 
-    // 3. Register the order with Razorpay
     const options = {
       amount: amountInSmallestUnit,
-      currency: "INR", // You can change this to "INR" if you want to switch your store to Rupees!
+      currency: "USD", // Change to "INR" if you are using Rupees
       receipt: `rcpt_${Date.now()}`,
     };
 
     const order = await razorpay.orders.create(options);
 
-    // 4. Send the Razorpay Order ID back to the frontend
     return NextResponse.json(order, { status: 200 });
-    
   } catch (error) {
     console.error("Razorpay Initialization Error:", error);
-    return NextResponse.json({ error: "Failed to initialize payment" }, { status: 500 });
+    return NextResponse.json(
+      { error: "An unexpected error occurred while initializing payment." },
+      { status: 500 }
+    );
   }
 }

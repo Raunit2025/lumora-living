@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSession, signIn, signOut } from "next-auth/react";
+import toast from "react-hot-toast";
 
 // --- TYPES & INTERFACES ---
 interface Product {
@@ -17,44 +18,17 @@ interface Product {
 interface CartItem extends Product {
   cartQuantity: number;
 }
-interface RazorpaySuccessResponse {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
-}
-interface RazorpayInstance {
-  open: () => void;
-}
-interface CustomWindow extends Window {
-  Razorpay?: new (options: Record<string, unknown>) => RazorpayInstance;
-}
-
-// --- RAZORPAY LOADER ---
-const loadRazorpayScript = () => {
-  return new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
 
 export default function Storefront() {
   const { data: session, status } = useSession();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Cart UI States
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"RAZORPAY" | "COD">(
-    "RAZORPAY",
-  );
-  const [selectedAddress, setSelectedAddress] = useState<string>("");
+
   // Auth Modal States
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
@@ -76,7 +50,7 @@ export default function Storefront() {
       }
     };
     fetchProducts();
-  }, [refreshTrigger]);
+  }, []);
 
   // 2. Fetch Persistent Cart
   useEffect(() => {
@@ -140,14 +114,25 @@ export default function Storefront() {
   };
 
   // 4. Cart Operations
-  const handleAddToCart = async (product: Product) => {
+const handleAddToCart = async (product: Product) => {
     if (!session) {
       setIsAuthModalOpen(true);
       return;
     }
 
+    // --- NEW PRE-CHECK LOGIC ---
+    // Check how many of this item are already in the cart
+    const existingItem = cart.find((item) => item.id === product.id);
+    const currentQty = existingItem ? existingItem.cartQuantity : 0;
+    
+    // Stop them immediately if they try to exceed the stock!
+    if (currentQty >= product.stock) {
+      toast.error(`Sorry, only ${product.stock} left in stock!`);
+      return; 
+    }
+    // ---------------------------
+
     setCart((prevCart) => {
-      const existingItem = prevCart.find((item) => item.id === product.id);
       if (existingItem) {
         return prevCart.map((item) =>
           item.id === product.id
@@ -157,6 +142,7 @@ export default function Storefront() {
       }
       return [...prevCart, { ...product, cartQuantity: 1 }];
     });
+    
     setIsCartOpen(true);
 
     try {
@@ -189,91 +175,6 @@ export default function Storefront() {
   );
   const cartTotalItems = cart.reduce((sum, item) => sum + item.cartQuantity, 0);
 
-  // 5. Razorpay Checkout Engine
-  const handleCheckout = async () => {
-    setIsCheckingOut(true);
-    try {
-      const isScriptLoaded = await loadRazorpayScript();
-      if (!isScriptLoaded) {
-        alert("Razorpay SDK failed to load. Are you online?");
-        setIsCheckingOut(false);
-        return;
-      }
-
-      const initResponse = await fetch("/api/razorpay", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: cart.map((item) => ({
-            productId: item.id,
-            quantity: item.cartQuantity,
-          })),
-        }),
-      });
-
-      if (!initResponse.ok) throw new Error("Failed to initialize payment");
-      const orderData = await initResponse.json();
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Lunora Living",
-        description: "Handcrafted goods for a slower home.",
-        order_id: orderData.id,
-        theme: { color: "#000000" },
-        prefill: { email: session?.user?.email || "" },
-
-        handler: async function (response: RazorpaySuccessResponse) {
-          try {
-            const payload = {
-              customerEmail: session?.user?.email || "guest@lunoraliving.com",
-              items: cart.map((item) => ({
-                productId: item.id,
-                quantity: item.cartQuantity,
-              })),
-              paymentId: response.razorpay_payment_id,
-            };
-
-            const finalizeRes = await fetch("/api/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-
-            if (finalizeRes.ok) {
-              setCart([]);
-              setIsCartOpen(false);
-              alert(
-                "Payment Successful! Your handcrafted goods are on the way.",
-              );
-              setRefreshTrigger((prev) => prev + 1);
-            } else {
-              alert(
-                "Payment captured, but order creation failed. Contact support.",
-              );
-            }
-          } catch (err) {
-            console.error("Finalization error:", err);
-          }
-        },
-      };
-
-      const customWindow = window as unknown as CustomWindow;
-      if (customWindow.Razorpay) {
-        const paymentObject = new customWindow.Razorpay(options);
-        paymentObject.open();
-      } else {
-        alert("Razorpay object could not be found.");
-      }
-    } catch (error) {
-      console.error("Checkout Error:", error);
-      alert("Network error during checkout.");
-    } finally {
-      setIsCheckingOut(false);
-    }
-  };
-
   if (loading || status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] text-gray-500 font-medium">
@@ -299,6 +200,12 @@ export default function Storefront() {
 
           {session ? (
             <div className="flex items-center gap-4">
+              <Link
+                href="/profile"
+                className="text-sm font-medium hover:text-gray-500"
+              >
+                Profile
+              </Link>
               <Link
                 href="/orders"
                 className="text-sm font-medium hover:text-gray-500"
@@ -517,6 +424,7 @@ export default function Storefront() {
                 &times;
               </button>
             </div>
+            
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
@@ -525,18 +433,10 @@ export default function Storefront() {
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex gap-4 border-b border-gray-50 pb-6"
-                  >
+                  <div key={item.id} className="flex gap-4 border-b border-gray-50 pb-6">
                     <div className="w-20 h-20 bg-gray-100 rounded-md overflow-hidden relative shrink-0">
                       {item.imageUrl ? (
-                        <Image
-                          src={item.imageUrl}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                        />
+                        <Image src={item.imageUrl} alt={item.name} fill className="object-cover" />
                       ) : (
                         <div className="absolute inset-0 bg-linear-to-tr from-gray-200 to-gray-100" />
                       )}
@@ -544,67 +444,35 @@ export default function Storefront() {
                     <div className="flex-1">
                       <div className="flex justify-between">
                         <h3 className="font-semibold">{item.name}</h3>
-                        <p className="font-bold">
-                          ${(item.price * item.cartQuantity).toFixed(2)}
-                        </p>
+                        <p className="font-bold">${(item.price * item.cartQuantity).toFixed(2)}</p>
                       </div>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Qty: {item.cartQuantity}
-                      </p>
-                      <div className="p-6 border-t border-gray-100 bg-gray-50 space-y-4">
-                        {/* Payment Selector */}
-                        <div className="flex gap-4">
-                          <button
-                            onClick={() => setPaymentMethod("RAZORPAY")}
-                            className={`flex-1 py-2 text-sm font-bold border rounded-md ${paymentMethod === "RAZORPAY" ? "bg-black text-white" : "bg-white"}`}
-                          >
-                            Razorpay
-                          </button>
-                          <button
-                            onClick={() => setPaymentMethod("COD")}
-                            className={`flex-1 py-2 text-sm font-bold border rounded-md ${paymentMethod === "COD" ? "bg-black text-white" : "bg-white"}`}
-                          >
-                            COD
-                          </button>
-                        </div>
-
-                        {/* Address Selector (Placeholder for now) */}
-                        <select
-                          className="w-full p-2 border rounded-md text-sm"
-                          onChange={(e) => setSelectedAddress(e.target.value)}
-                        >
-                          <option value="">Select Shipping Address</option>
-                          {/* We will map user addresses here soon! */}
-                        </select>
-
-                        <button
-                          onClick={handleCheckout}
-                          disabled={isCheckingOut || !selectedAddress}
-                          className="w-full bg-black text-white py-4 rounded-full font-bold hover:bg-gray-800 transition-colors disabled:bg-gray-400"
-                        >
-                          {isCheckingOut
-                            ? "Processing..."
-                            : `Checkout via ${paymentMethod}`}
-                        </button>
-                      </div>
+                      <p className="text-sm text-gray-500 mt-1">Qty: {item.cartQuantity}</p>
+                      
+                      <button 
+                        onClick={() => handleRemoveFromCart(item.id)} 
+                        className="text-xs text-red-500 hover:underline mt-2 font-medium"
+                      >
+                        Remove item
+                      </button>
                     </div>
                   </div>
                 ))
               )}
             </div>
+
             {cart.length > 0 && (
               <div className="p-6 border-t border-gray-100 bg-gray-50">
                 <div className="flex justify-between text-lg font-bold mb-4">
                   <span>Subtotal</span>
                   <span>${cartTotalAmount.toFixed(2)}</span>
                 </div>
-                <button
-                  onClick={handleCheckout}
-                  disabled={isCheckingOut}
-                  className="w-full bg-black text-white py-4 rounded-full font-bold hover:bg-gray-800 transition-colors disabled:bg-gray-400"
+                <Link
+                  href="/checkout"
+                  onClick={() => setIsCartOpen(false)}
+                  className="w-full block text-center bg-black text-white py-4 rounded-full font-bold hover:bg-gray-800 transition-colors"
                 >
-                  {isCheckingOut ? "Processing..." : "Checkout securely"}
-                </button>
+                  Proceed to Checkout
+                </Link>
               </div>
             )}
           </div>
