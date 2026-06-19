@@ -1,15 +1,16 @@
 import { PrismaClient } from "./prisma-client/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
-// This prevents multiple instances of Prisma Client from 
-// being created during development hot-reloads.
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 const createPrismaClient = () => {
-  // Prisma 7 requires this native adapter to communicate safely with your database
-  const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL as string,
-  });
+  // 1. Create a pg pool using the pooled Neon connection string
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL as string });
+  
+  // 2. Pass the pool to the adapter
+  const adapter = new PrismaPg(pool);
+  
   return new PrismaClient({ adapter });
 };
 
