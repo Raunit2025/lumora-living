@@ -92,6 +92,9 @@ export default function AdminPortal() {
   const handleAdminLogin = () => {
     if (adminPassword.trim() === "sweta123") {
       sessionStorage.setItem("lunoraAdminAuth", "true");
+      
+      document.cookie = "lunora_admin_session=true; path=/";
+      
       setIsAuthenticated(true);
     } else {
       toast.error("Incorrect admin credential.");
@@ -101,6 +104,9 @@ export default function AdminPortal() {
 
   const handleAdminLogout = () => {
     sessionStorage.removeItem("lunoraAdminAuth");
+    
+    document.cookie = "lunora_admin_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    
     setIsAuthenticated(false);
     setAdminPassword("");
   };
